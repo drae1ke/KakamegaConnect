@@ -8,22 +8,58 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
-import { FileText, CheckCircle } from "lucide-react";
-import { serviceCategories, subcounties, wards, addSubmission } from "@/lib/mockData";
+import { FileText, CheckCircle, Loader2 } from "lucide-react";
+import { serviceCategories, subcounties, wards } from "@/lib/mockData";
+import { serviceRequests, ApiError } from "@/lib/api";
 
 const formSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
-  phoneNumber: z.string().min(10, "Enter a valid phone number").max(15),
-  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
+  fullName: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100),
+  phoneNumber: z
+    .string()
+    .min(10, "Enter a valid phone number")
+    .max(15),
+  email: z
+    .string()
+    .email("Enter a valid email")
+    .optional()
+    .or(z.literal("")),
   category: z.string().min(1, "Please select a category"),
   subcounty: z.string().min(1, "Please select a sub-county"),
   ward: z.string().min(1, "Please select a ward"),
-  location: z.string().min(5, "Please provide a specific location").max(200),
-  description: z.string().min(20, "Please provide more details (at least 20 characters)").max(1000),
+  location: z
+    .string()
+    .min(5, "Please provide a specific location")
+    .max(200),
+  description: z
+    .string()
+    .min(20, "Please provide more details (at least 20 characters)")
+    .max(1000),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -34,6 +70,7 @@ const SubmitRequest = () => {
   const [submitted, setSubmitted] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState("");
   const [selectedSubcounty, setSelectedSubcounty] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -41,7 +78,7 @@ const SubmitRequest = () => {
       fullName: "",
       phoneNumber: "",
       email: "",
-      category: searchParams.get("category") || "",
+      category: searchParams.get("category") ?? "",
       subcounty: "",
       ward: "",
       location: "",
@@ -51,24 +88,38 @@ const SubmitRequest = () => {
 
   useEffect(() => {
     const category = searchParams.get("category");
-    if (category) {
-      form.setValue("category", category);
-    }
+    if (category) form.setValue("category", category);
   }, [searchParams, form]);
 
-  const onSubmit = (data: FormData) => {
-    const submission = addSubmission({
-      category: data.category,
-      subcounty: data.subcounty,
-      ward: data.ward,
-      location: data.location,
-      description: data.description,
-      type: "request",
-    });
+  const onSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
+    try {
+      const response = await serviceRequests.submit({
+        fullName: data.fullName,
+        phoneNumber: data.phoneNumber,
+        email: data.email || undefined,
+        category: data.category,
+        subcounty: data.subcounty,
+        ward: data.ward,
+        location: data.location,
+        description: data.description,
+      });
 
-    setTrackingNumber(submission.trackingNumber);
-    setSubmitted(true);
-    toast.success("Service request submitted successfully!");
+      // Backend returns applicationNumber for service requests
+      setTrackingNumber(
+        response.data.applicationNumber ?? "N/A"
+      );
+      setSubmitted(true);
+      toast.success("Service request submitted successfully!");
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubcountyChange = (value: string) => {
@@ -76,6 +127,8 @@ const SubmitRequest = () => {
     form.setValue("subcounty", value);
     form.setValue("ward", "");
   };
+
+  // ── Success screen ─────────────────────────────────────────────────────────
 
   if (submitted) {
     return (
@@ -88,20 +141,37 @@ const SubmitRequest = () => {
                 <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-2xl text-foreground">Request Submitted!</CardTitle>
-                <CardDescription>Your service request has been received</CardDescription>
+                <CardTitle className="text-2xl text-foreground">
+                  Request Submitted!
+                </CardTitle>
+                <CardDescription>
+                  Your service request has been received
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="bg-accent p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Your Tracking Number</p>
-                  <p className="text-2xl font-mono font-bold text-primary">{trackingNumber}</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Your Tracking Number
+                  </p>
+                  <p className="text-2xl font-mono font-bold text-primary">
+                    {trackingNumber}
+                  </p>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Save this tracking number to monitor the status of your request. You can track it anytime using our tracking page.
+                  Save this tracking number to monitor the status of your
+                  request. You can track it anytime using our tracking page.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button onClick={() => navigate("/track")}>Track Request</Button>
-                  <Button variant="outline" onClick={() => { setSubmitted(false); form.reset(); }}>
+                  <Button onClick={() => navigate("/track")}>
+                    Track Request
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSubmitted(false);
+                      form.reset();
+                    }}
+                  >
                     Submit Another
                   </Button>
                 </div>
@@ -114,11 +184,12 @@ const SubmitRequest = () => {
     );
   }
 
+  // ── Form ───────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      {/* Page Header */}
       <section className="bg-secondary py-12">
         <div className="container mx-auto px-4 text-center">
           <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
@@ -128,23 +199,27 @@ const SubmitRequest = () => {
             Submit Service Request
           </h1>
           <p className="text-secondary-foreground/80 max-w-xl mx-auto">
-            Fill out the form below to request a county service. We'll process your request and keep you updated.
+            Fill out the form below to request a county service. We'll process
+            your request and keep you updated.
           </p>
         </div>
       </section>
 
-      {/* Form Section */}
       <main className="flex-1 py-12 bg-background">
         <div className="container mx-auto px-4">
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
               <CardTitle>Request Details</CardTitle>
-              <CardDescription>Please provide accurate information to help us serve you better</CardDescription>
+              <CardDescription>
+                Please provide accurate information to help us serve you better
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Personal Information */}
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-6"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -181,21 +256,27 @@ const SubmitRequest = () => {
                       <FormItem>
                         <FormLabel>Email (Optional)</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="john@example.com" {...field} />
+                          <Input
+                            type="email"
+                            placeholder="john@example.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Service Category */}
                   <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Service Category *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a service category" />
@@ -203,7 +284,10 @@ const SubmitRequest = () => {
                           </FormControl>
                           <SelectContent>
                             {serviceCategories.map((service) => (
-                              <SelectItem key={service.id} value={service.category}>
+                              <SelectItem
+                                key={service.id}
+                                value={service.category}
+                              >
                                 {service.title}
                               </SelectItem>
                             ))}
@@ -214,7 +298,6 @@ const SubmitRequest = () => {
                     )}
                   />
 
-                  {/* Location */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -222,7 +305,10 @@ const SubmitRequest = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Sub-County *</FormLabel>
-                          <Select onValueChange={handleSubcountyChange} value={field.value}>
+                          <Select
+                            onValueChange={handleSubcountyChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select sub-county" />
@@ -258,7 +344,9 @@ const SubmitRequest = () => {
                             </FormControl>
                             <SelectContent>
                               {selectedSubcounty &&
-                                wards[selectedSubcounty as keyof typeof wards]?.map((ward) => (
+                                wards[
+                                  selectedSubcounty as keyof typeof wards
+                                ]?.map((ward) => (
                                   <SelectItem key={ward} value={ward}>
                                     {ward}
                                   </SelectItem>
@@ -278,7 +366,10 @@ const SubmitRequest = () => {
                       <FormItem>
                         <FormLabel>Specific Location *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Near Kakamega Primary School, along Kisumu Road" {...field} />
+                          <Input
+                            placeholder="e.g., Near Kakamega Primary School, along Kisumu Road"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -303,8 +394,20 @@ const SubmitRequest = () => {
                     )}
                   />
 
-                  <Button type="submit" size="lg" className="w-full">
-                    Submit Request
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Submitting…
+                      </>
+                    ) : (
+                      "Submit Request"
+                    )}
                   </Button>
                 </form>
               </Form>
