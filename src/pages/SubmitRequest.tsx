@@ -228,7 +228,7 @@ const SubmitRequest = () => {
                         <FormItem>
                           <FormLabel>Full Name *</FormLabel>
                           <FormControl>
-                            <Input placeholder="John Doe" {...field} />
+                            <Input placeholder="Moses Nambwaya" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -241,7 +241,7 @@ const SubmitRequest = () => {
                         <FormItem>
                           <FormLabel>Phone Number *</FormLabel>
                           <FormControl>
-                            <Input placeholder="0700 000 000" {...field} />
+                            <Input placeholder="+254723085018" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -258,7 +258,7 @@ const SubmitRequest = () => {
                         <FormControl>
                           <Input
                             type="email"
-                            placeholder="john@example.com"
+                              placeholder="kakamegacountygovt@gmail.com"
                             {...field}
                           />
                         </FormControl>

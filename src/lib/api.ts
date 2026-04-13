@@ -214,7 +214,7 @@ export const complaints = {
   /** Public — track a complaint by tracking number */
   track: (trackingNumber: string) =>
     get<{ success: boolean; data: TrackingResult }>(
-      `/complaints/track/${trackingNumber}`
+      `/complaints/track/${encodeURIComponent(trackingNumber)}`
     ),
 
   /** Staff — get all complaints with optional filters */
@@ -333,7 +333,7 @@ export const serviceRequests = {
   /** Public — track a service application */
   track: (trackingNumber: string) =>
     get<{ success: boolean; data: Record<string, unknown> }>(
-      `/services/applications/track/${trackingNumber}`
+      `/services/applications/track/${encodeURIComponent(trackingNumber)}`
     ),
 };
 
